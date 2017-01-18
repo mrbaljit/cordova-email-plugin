@@ -18,6 +18,11 @@
  specific language governing permissions and limitations
  under the License.
  */
+#define RETURN_CODE_EMAIL_CANCELLED 0
+#define RETURN_CODE_EMAIL_SAVED 1
+#define RETURN_CODE_EMAIL_SENT 2
+#define RETURN_CODE_EMAIL_FAILED 3
+#define RETURN_CODE_EMAIL_NOTSENT 4
 
 #import "APPEmailComposer.h"
 #import "APPEmailComposerImpl.h"
@@ -103,7 +108,7 @@
 
         if (TARGET_IPHONE_SIMULATOR) {
             [self informAboutIssueWithSimulators];
-            [self execCallback];
+            [self execCallback:RETURN_CODE_EMAIL_SENT];
         }
         else {
             [self presentMailComposerFromProperties:props];
@@ -122,9 +127,28 @@
            didFinishWithResult:(MFMailComposeResult)result
                          error:(NSError*)error
 {
+    int code = 0;
+
+         switch (result) {
+             case MFMailComposeResultCancelled:
+                 code = RETURN_CODE_EMAIL_CANCELLED;
+                 break;
+             case MFMailComposeResultSaved:
+                 code = RETURN_CODE_EMAIL_SAVED;
+                 break;
+             case MFMailComposeResultSent:
+                 code = RETURN_CODE_EMAIL_SENT;
+                 break;
+             case MFMailComposeResultFailed:
+                 code = RETURN_CODE_EMAIL_FAILED;
+                 break;
+             default:
+                 code = RETURN_CODE_EMAIL_NOTSENT;
+                 break;
+     }
     [controller dismissViewControllerAnimated:YES completion:NULL];
 
-    [self execCallback];
+    [self execCallback:code];
 }
 
 #pragma mark -
@@ -193,10 +217,11 @@
 /**
  * Invokes the callback without any parameter.
  */
-- (void) execCallback
+- (void) execCallback:(int)code
 {
     CDVPluginResult *result = [CDVPluginResult
-                               resultWithStatus:CDVCommandStatus_OK];
+                               resultWithStatus:CDVCommandStatus_OK
+                               messageAsInt:code];
 
     [self.commandDelegate sendPluginResult:result
                                 callbackId:_command.callbackId];
